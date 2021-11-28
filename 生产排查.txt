@@ -1,0 +1,54 @@
+给一个系统定位问题的时候，知识、经验是关键基础，数据是依据，工具是运用知识处理数据的 手段。这里说的数据包括但不限于异常堆栈、虚拟机运行日志、垃圾收集器日志、线程快照
+(threaddump /javacore文件)、堆转储快照(heap dump /hp rof文件)等。 
+
+Jps 
+	-q 只输出LVMID，省略主类名称
+	-m 输出虚拟机进程启动时传递给主类的参数
+	-l 输出主类的全名，如果进程执行的是jar包，输出jar路径
+	-v 输出虚拟机进程启动时jvm参数
+Jcmd
+	jcmd <process id/main class> <command> [options]  命令格式
+	jcmd <process id/main class> help <command> 命令解释帮助
+	常用命令：
+	jcmd <process id/main class> VM.version
+		打印完整的HotSpot和JDK版本ID。
+	jcmd <process id/main class> VM.system_properties
+		打印为VM设置的所有系统属性。可以显示数百行信息。
+	jcmd <process id/main class> VM.flags
+		打印用于VM的所有标志。即使您没有提供标志，也会打印一些默认值，例如初始和最大堆大小。
+	jcmd <process id/main class> VM.uptime
+		以秒为单位打印正常运行时间。
+		jcmd <process id/main class> GC.class_histogram [>>./filename]   (java 推荐方法)
+		创建一个类直方图。结果可能相当冗长，因此您可以将输出重定向到文件。内部和特定于应用程序的类都包含在列表中。占用最多内存的类列在顶部，类按降序列出。
+		jcmd <process id/main class> GC.heap_dump  Myheapdump（推荐绝对地址） (java 推荐方法)
+		创建堆转储,默认是转储存活对象。(JVM 生成 Heap Dump 的时候，虚拟机是暂停一切服务的。如果是线上系统执行 Heap Dump 时需要注意。)（替代jmap）
+	jcmd <process id/main class> Thread.print
+		使用堆栈跟踪打印所有线程。（替代jstack）
+	jcmd 7060 JFR.start（需要开启jdk商业特性）
+		开始记录jfr记录
+		例子：jcmd 7060 JFR.start name=MyRecording settings=profile delay=20s duration=2m filename=myrecording.jfr
+		name：相当于记录的id标志；settings记录设置（默认包含profile default）,profile信息更详细一些；delay延迟多长时间开始记录；duration记录多长时间内的记录信息，为0时代表一直监控不会自动生成jfr文件，需要手动生成（jcmd 7060 JFR.dump）
+Jconsole  程序检查java进程概况
+Jmap（查看堆情况）
+	jmap -heap <pid>      获取java堆信息
+	Jmap -clstats <pid> 打印Java堆的类加载器统计信息
+	jmap -histo <pid>  与jcmd <process id/main class> GC.class_histogram效果相同
+	jmap -permstat <pid>  统计永久带中内存占用详情，java8不支持
+	Jmap -dump:<dump-options> 生成Heap Dump ，与jcmd <process id/main class> GC.heap_dump效果相同
+			Live   只转储活动对象;如果不指定,堆中的所有对象都被转储。（jcmd默认是转储存活对象）
+			format=b     存储为二进制文件
+			file=<file>  存储文件名
+			举例：jmap -dump:live,format=b,file=heap.bin
+Jstack（查看线程情况，通常用于定位线程帅呢长时间停顿的原因）
+	<pid> 与jcmd <process id/main class> Thread.print效果相同
+	 -l <pid> 与jcmd <process id/main class> Thread.print -l效果相同
+	-m <pid> 除了Java堆栈之外，它还可以打印本机堆栈帧。本机帧是与jVM代码和JNI /本机代码相关联的C / C ++帧
+Jstat（类加载、垃圾收集、运行期编译状况）    jstat  - outputOptions [-t] [-h lines ] vmid [ interval [ count ]]
+	-t 添加一列时间是进程执行到现在为止的时间; -h n 每n个输出显示一个标题行
+	Interval 间隔时间默认毫秒 可以使用s、ms; count显示样本数，默认一直显示
+	-outputOptions 常用 
+		-class监视类加载、卸载数量、总空间以及类装载所耗费的时间
+		-gc显示有关垃圾回收堆行为的统计信息;
+		-gcutil：显示有关垃圾回收统计信息的摘要；
+		-gccapacity：显示有关代的容量及其相应空间的统计信息；
+		-gccause：显示有关垃圾收集统计信息（-gcutil与之相同）的摘要，以及最后一个和当前（适用时）垃圾收集事件的原因；
